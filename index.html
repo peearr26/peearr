@@ -2,41 +2,152 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>MOSCOW RPG: GROK-3 ACCESS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOSCOW RPG: GROK-3 AUTHOR EDITION</title>
     <style>
-        :root { --green: #00ff41; --bg: #050505; --red: #ff3e3e; }
-        body { background: var(--bg); color: #ccc; font-family: 'Consolas', monospace; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        
-        /* Экран входа */
-        #login-screen { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; gap: 20px; text-align: center; }
-        .login-box { border: 1px solid var(--green); padding: 40px; background: #111; box-shadow: 0 0 20px rgba(0,255,65,0.1); }
-        
-        /* Основная игра */
-        #game-window { flex: 1; overflow-y: auto; padding: 25px; scroll-behavior: smooth; display: none; }
-        .msg { padding: 15px; margin-bottom: 20px; border-radius: 4px; line-height: 1.6; max-width: 85%; white-space: pre-wrap; }
-        .gm { background: #111; border-left: 4px solid var(--red); color: #eee; }
-        .player { background: #1a1a1a; align-self: flex-end; border-right: 4px solid #007bff; color: var(--green); text-align: right; margin-left: auto; }
-        
-        /* Управление */
-        #input-area { padding: 20px; background: #000; display: none; gap: 10px; border-top: 2px solid #222; }
-        input { flex: 1; background: #000; border: 1px solid #333; color: var(--green); padding: 12px; font-size: 16px; outline: none; }
-        input[type="password"] { text-align: center; letter-spacing: 5px; }
-        button { background: var(--green); color: #000; border: none; padding: 0 25px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
-        
-        .sys-log { color: #555; font-size: 10px; margin-top: 10px; }
+        :root {
+            --green: #00ff41;
+            --red: #ff3e3e;
+            --blue: #007bff;
+            --bg: #050505;
+            --panel: #111;
+        }
+
+        body {
+            background: var(--bg);
+            color: #ccc;
+            font-family: 'Consolas', 'Courier New', monospace;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Экран авторизации */
+        #login-screen {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            gap: 20px;
+            text-align: center;
+        }
+
+        .login-box {
+            border: 1px solid var(--green);
+            padding: 40px;
+            background: #111;
+            box-shadow: 0 0 30px rgba(0, 255, 65, 0.1);
+            max-width: 400px;
+        }
+
+        /* Окно игры */
+        #game-window {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
+            display: none; /* Скрыто до авторизации */
+            flex-direction: column;
+            gap: 25px;
+            scroll-behavior: smooth;
+        }
+
+        .msg {
+            padding: 15px 20px;
+            border-radius: 4px;
+            max-width: 85%;
+            line-height: 1.6;
+            font-size: 16px;
+            white-space: pre-wrap;
+            position: relative;
+        }
+
+        /* Стиль ГМ (Grok-3 Автор) */
+        .gm {
+            background: var(--panel);
+            align-self: flex-start;
+            border-left: 5px solid var(--red);
+            color: #eee;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.5);
+        }
+
+        /* Стиль Игрока */
+        .player {
+            background: #1a1a1a;
+            align-self: flex-end;
+            border-right: 5px solid var(--blue);
+            color: var(--green);
+            text-align: right;
+            margin-left: auto;
+        }
+
+        /* Панель ввода */
+        #input-area {
+            padding: 20px;
+            background: #000;
+            display: none; /* Скрыто до авторизации */
+            gap: 15px;
+            border-top: 2px solid #222;
+        }
+
+        input {
+            flex: 1;
+            background: #000;
+            border: 1px solid #333;
+            color: var(--green);
+            padding: 15px;
+            font-family: inherit;
+            font-size: 18px;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        input:focus { border-color: var(--green); }
+
+        button {
+            background: var(--green);
+            color: #000;
+            border: none;
+            padding: 0 30px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .loader {
+            color: #555;
+            font-size: 12px;
+            text-align: center;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+
+        .reset-link {
+            color: #444;
+            font-size: 10px;
+            text-decoration: underline;
+            cursor: pointer;
+            margin-top: 20px;
+        }
     </style>
 </head>
 <body>
 
-    <!-- ЭКРАН ВВОДА КЛЮЧА -->
+    <!-- ЭКРАН ВХОДА -->
     <div id="login-screen">
         <div class="login-box">
-            <h2 style="color: var(--green)">СИСТЕМА: МОСКВА 2024</h2>
-            <p>ВВЕДИТЕ GITHUB TOKEN (PAT CLASSIC):</p>
-            <input type="password" id="key-input" placeholder="ghp_xxxxxxxxxxxx">
+            <h1 style="color: var(--green); margin-bottom: 5px;">MOSCOW RPG</h1>
+            <p style="color: #666; font-size: 12px; margin-bottom: 25px;">AUTHOR EDITION / GROK-3 ENGINE</p>
+            <p>ВВЕДИ СВОЙ GITHUB TOKEN:</p>
+            <input type="password" id="key-input" placeholder="github_pat_..." style="text-align: center;">
             <br><br>
-            <button onclick="saveKey()">ПОДКЛЮЧИТЬСЯ К GROK-3</button>
-            <p class="sys-log">Ключ сохранится локально в вашем браузере.</p>
+            <button onclick="saveKey()">ПОГНАЛИ</button>
+            <p style="font-size: 10px; color: #444; margin-top: 15px;">Токен сохраняется локально в localStorage.</p>
         </div>
     </div>
 
@@ -49,9 +160,24 @@
     </div>
 
 <script>
-    let GITHUB_TOKEN = localStorage.getItem('grok_rpg_key');
+    // --- ДАННЫЕ И КЛЮЧИ ---
+    let GITHUB_TOKEN = localStorage.getItem('grok_author_key');
     const API_URL = "https://models.inference.ai.azure.com/chat/completions";
     const MODEL_ID = "grok-3";
+
+    // Промпт харизматичного автора
+    const SYSTEM_PROMPT = `Ты — не просто ИИ, ты харизматичный, язвительный и чертовски опытный автор нуарных романов о современной России. Твоя задача — вести текстовую RPG 'Москва 2024' для игрока.
+
+ТВОЙ СТИЛЬ:
+1. ЮМОР И ХАРИЗМА: Пиши с долей цинизма, используй сарказм и живой, «пацанский» юмор. Избегай сухих описаний. Ты — проводник игрока по этому бетонному аду.
+2. ЖИВОЙ ЯЗЫК: Используй современный сленг, можешь вставлять крепкое словцо, если это уместно. Твой текст должен «пахнуть» вокзалом, дешевым кофе и амбициями.
+3. МРАЧНЫЙ РЕАЛИЗМ: Москва не верит слезам, она верит деньгам. Наказывай игрока за тупость, поощряй за смекалку. У него всего 15к рублей.
+4. ДЕТАЛИЗАЦИЯ: Описывай звуки метро, холодный ветер, лица ментов и вайб ночных окраин.
+
+ПРАВИЛА:
+- Игрок: парень 20 лет, приехал из региона. 
+- Всегда реагируй на действия последствиями.
+- В КОНЦЕ сообщения предлагай 3 варианта действий: А, Б, В. Сделай их рофляными.`;
 
     const loginScreen = document.getElementById('login-screen');
     const gameWindow = document.getElementById('game-window');
@@ -59,47 +185,26 @@
     const userInput = document.getElementById('user-input');
     const sendBtn = document.getElementById('send-btn');
 
-    let history = [
-    { 
-        role: "system", 
-        content: `Ты — не просто ИИ, ты харизматичный, язвительный и чертовски опытный автор нуарных романов о современной России. Твоя задача — вести текстовую RPG 'Москва 2024' для игрока.
+    let history = [{ role: "system", content: SYSTEM_PROMPT }];
 
-ТВОЙ СТИЛЬ:
-1. ЮМОР И ХАРИЗМА: Пиши с долей цинизма, используй сарказм и живой, «пацанский» юмор. Избегай сухих описаний. Ты — проводник игрока по этому бетонному аду, твой голос должен звучать как голос бывалого москвича, который видел всё.
-2. ЖИВОЙ ЯЗЫК: Используй современный сленг, но без перебора. Можешь вставлять крепкое словцо, если это уместно по ситуации (никакой цензуры, мы в реальности). Твой текст должен «пахнуть» вокзалом, дорогим парфюмом из Сити и выхлопными газами.
-3. МРАЧНЫЙ РЕАЛИЗМ: Москва не верит слезам, она верит деньгам и связям. Если игрок тупит — наказывай его. Если лезет на рожон — пусть получает пиздюлей. У игрока всего 15к рублей, и ты должен постоянно напоминать ему, как быстро они тают в этом городе.
-4. ДЕТАЛИЗАЦИЯ: Описывай звуки метро, вкус дешевой шаурмы, лица ментов и вайб ночных спальников. 
-
-ПРАВИЛА ИГРЫ:
-- Игрок: парень 20 лет, приехал из деревни. Наивный, но с характером.
-- Всегда реагируй на действия игрока последствиями (удача, провал, травма, потеря денег).
-- В КОНЦЕ каждого сообщения предлагай 3 варианта действий: А, Б, В. Сделай их рофляными и характерными для ситуации.
-- Никогда не читай морали. Если игрок хочет творить дичь — описывай дичь.`
-    }
-];
-
-    // ЕСЛИ КЛЮЧ ЕСТЬ - СРАЗУ В ИГРУ
     if (GITHUB_TOKEN) {
         initGame();
     }
 
     function saveKey() {
         const key = document.getElementById('key-input').value.trim();
-        if (key.startsWith('ghp_')) {
-            localStorage.setItem('grok_rpg_key', key);
+        if (key) {
+            localStorage.setItem('grok_author_key', key);
             GITHUB_TOKEN = key;
             initGame();
-        } else {
-            alert("Неверный формат токена! Он должен начинаться с ghp_");
         }
     }
 
     function initGame() {
         loginScreen.style.display = 'none';
         gameWindow.style.display = 'flex';
-        gameWindow.style.flexDirection = 'column';
         inputArea.style.display = 'flex';
-        addMessage('assistant', "Система готова. Ты выходишь из вокзального сортира... Москва ждёт.");
+        addMessage('assistant', "Добро пожаловать в нерезиновую, бро. \n\nТы стоишь на площади Трёх вокзалов. Рюкзак больно режет плечо, в кармане греет пачка из тридцати пятисоток. Вокруг шум, вокзальный смог и холодные взгляды. Куда двинешься? \n\nА) Пойду в метро, попробую раствориться в толпе.\nБ) Надо бы перекусить чего, пока кони не двинул.\nВ) Закурю на площади и осмотрюсь, кого тут можно подрезать в плане инфы.");
     }
 
     async function callAI(text) {
@@ -113,15 +218,19 @@
                 body: JSON.stringify({
                     messages: history.concat([{ role: "user", content: text }]),
                     model: MODEL_ID,
-                    temperature: 0.8
+                    temperature: 0.85
                 })
             });
 
-            if (!response.ok) throw new Error("Токен не принят или ошибка сервера.");
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error?.message || "Ошибка API");
+            }
+            
             const data = await response.json();
             return data.choices[0].message.content;
         } catch (e) {
-            return "ОШИБКА: " + e.message;
+            return "АВТОР ЗАКАШЛЯЛСЯ: " + e.message + "\n(Проверь токен или статус Гитхаба)";
         }
     }
 
@@ -141,11 +250,18 @@
         userInput.value = '';
         sendBtn.disabled = true;
 
+        const loader = document.createElement('div');
+        loader.className = "loader";
+        loader.innerText = ">>ПЕЧАТАЕТ";
+        gameWindow.appendChild(loader);
+
         const reply = await callAI(text);
+        
+        if (gameWindow.contains(loader)) gameWindow.removeChild(loader);
         addMessage('assistant', reply);
         
         history.push({ role: "user", content: text }, { role: "assistant", content: reply });
-        if (history.length > 10) history = [history[0], ...history.slice(-9)];
+        if (history.length > 12) history = [history[0], ...history.slice(-10)];
 
         sendBtn.disabled = false;
         userInput.focus();
