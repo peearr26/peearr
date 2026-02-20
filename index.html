@@ -1,0 +1,210 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PEERR | Secure Handshake Node</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Inter:wght@300;600&display=swap" rel="stylesheet">
+    <style>
+        :root { --blue: #00f2ff; --pink: #ff00e5; --glass: rgba(255, 255, 255, 0.05); }
+        body { background: #050508; color: #fff; font-family: 'Inter', sans-serif; margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        .bg-glow { position: fixed; width: 600px; height: 600px; background: radial-gradient(circle, var(--blue) 0%, transparent 70%); filter: blur(120px); opacity: 0.1; z-index: -1; }
+
+        .app-container { width: 95vw; max-width: 1100px; height: 90vh; background: var(--glass); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 40px; display: flex; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,0.6); }
+
+        /* Сайдбар */
+        .sidebar { width: 300px; border-right: 1px solid rgba(255, 255, 255, 0.1); padding: 30px; display: flex; flex-direction: column; gap: 20px; background: rgba(0,0,0,0.2); }
+        .logo { font-family: 'Orbitron', sans-serif; font-size: 24px; color: var(--blue); letter-spacing: 5px; }
+        .my-id-box { background: #000; padding: 15px; border-radius: 15px; font-size: 11px; border: 1px solid var(--blue); color: #888; }
+        .my-id-box b { display: block; color: var(--blue); font-size: 14px; margin-top: 5px; cursor: pointer; }
+        
+        input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 12px; color: #fff; outline: none; width: 100%; box-sizing: border-box; }
+        .btn { background: var(--blue); color: #000; border: none; padding: 12px; border-radius: 12px; font-weight: 700; cursor: pointer; text-transform: uppercase; transition: 0.3s; width: 100%; }
+        .btn:hover { box-shadow: 0 0 20px var(--blue); transform: scale(1.02); }
+
+        /* Чат */
+        .chat-area { flex: 1; display: flex; flex-direction: column; position: relative; }
+        .chat-header { padding: 25px 35px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); display: flex; justify-content: space-between; align-items: center; }
+        .messages { flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg { max-width: 70%; padding: 12px 16px; border-radius: 12px; font-size: 14px; }
+        .msg.sent { align-self: flex-end; background: var(--blue); color: #000; }
+        .msg.received { align-self: flex-start; background: rgba(255,255,255,0.1); }
+        .controls { padding: 25px; display: flex; gap: 15px; background: rgba(0,0,0,0.3); }
+
+        /* ОКНО ПОДТВЕРЖДЕНИЯ (HANDSHAKE) */
+        .modal { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); z-index: 2000; display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .modal-card { background: #111; border: 2px solid var(--blue); padding: 40px; border-radius: 25px; max-width: 400px; }
+        
+        /* РОФЛО-ЗАГЛУШКА */
+        .lock-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 3000; display: none; flex-direction: column; justify-content: center; align-items: center; padding: 40px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="bg-glow"></div>
+
+<!-- Модалка подтверждения входа -->
+<div class="modal" id="handshake-modal">
+    <div class="modal-card">
+        <h2 style="color:var(--blue)">ВХОДЯЩИЙ ЗАПРОС</h2>
+        <p id="request-info">Узел peerr-xxx хочет подключиться к вашей сессии.</p>
+        <div style="display:flex; gap:10px;">
+            <button class="btn" style="background:none; color:white; border:1px solid #333;" onclick="rejectConn()">ОТКЛОНИТЬ</button>
+            <button class="btn" onclick="acceptConn()">ПОДТВЕРДИТЬ</button>
+        </div>
+    </div>
+</div>
+
+<div class="app-container">
+    <div class="sidebar">
+        <div class="logo">PEERR</div>
+        <div class="my-id-box">
+            PUBLIC KEY (NODE ID):
+            <b id="display-id" onclick="copyId()">Инициализация...</b>
+        </div>
+        
+        <input type="text" id="remote-id" placeholder="Вставьте ID друга">
+        <button class="btn" onclick="initiateConnection()">ПОДКЛЮЧИТЬСЯ</button>
+
+        <div style="margin-top:auto; font-size:10px; opacity:0.3; line-height:1.6;">
+            P2P BRIDGE: ACTIVE<br>
+            ENCRYPTION: QUANTUM_SECURE<br>
+            PEERJS SIGNALLING: ON
+        </div>
+    </div>
+
+    <div class="chat-area">
+        <!-- Байт-заглушка -->
+        <div class="lock-overlay" id="paywall">
+            <h1 style="color:var(--pink)">SECURITY BREACH!</h1>
+            <p>Ваша сессия была временно приостановлена из-за аномальной активности. Для продолжения пройдите верификацию в Telegram.</p>
+            <a href="https://t.me/ТВОЙ_КАНАЛ" target="_blank" class="btn">ПОЛУЧИТЬ КЛЮЧ</a>
+            <input type="text" id="v-code" placeholder="ВВЕДИТЕ КЛЮЧ" style="margin-top:20px; text-align:center;">
+            <button class="btn" style="margin-top:10px; background:#fff;" onclick="verify()">РАЗБЛОКИРОВАТЬ</button>
+        </div>
+
+        <div class="chat-header">
+            <div id="connection-status" style="font-weight:600; color:#666;">ОЖИДАНИЕ СВЯЗИ...</div>
+        </div>
+
+        <div class="messages" id="messages">
+            <div class="msg received">Система PEERR готова. Передайте свой ID собеседнику для анонимного обмена данными.</div>
+        </div>
+
+        <div class="controls">
+            <input type="text" id="msg-input" placeholder="Зашифрованное сообщение..." onkeypress="if(event.key==='Enter') send()">
+            <button class="btn" style="width:100px;" onclick="send()">SEND</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const myId = 'peerr-' + Math.floor(Math.random() * 9000000000 + 1000000000);
+    document.getElementById('display-id').innerText = myId;
+
+    const peer = new Peer(myId, { debug: 2 });
+    let conn;
+    let msgCounter = 0;
+
+    // 1. Инициатор (тот, кто вводит ID)
+    function initiateConnection() {
+        const destId = document.getElementById('remote-id').value;
+        if (!destId) return alert("Введите ID!");
+        
+        conn = peer.connect(destId);
+        setupConnectionEvents();
+        document.getElementById('connection-status').innerText = "ОЖИДАНИЕ ПОДТВЕРЖДЕНИЯ...";
+    }
+
+    // 2. Принимающая сторона (Host)
+    peer.on('connection', (incomingConn) => {
+        conn = incomingConn;
+        // Показываем модалку подтверждения
+        document.getElementById('request-info').innerText = `Узел ${conn.peer} запрашивает доступ к вашей сессии.`;
+        document.getElementById('handshake-modal').style.display = 'flex';
+        
+        setupConnectionEvents();
+    });
+
+    function acceptConn() {
+        document.getElementById('handshake-modal').style.display = 'none';
+        conn.send({ type: 'SYSTEM', content: 'HANDSHAKE_ACCEPTED' });
+        document.getElementById('connection-status').innerText = "NODE CONNECTED: " + conn.peer;
+        document.getElementById('connection-status').style.color = 'var(--blue)';
+    }
+
+    function rejectConn() {
+        location.reload(); // Проще всего сбросить сессию
+    }
+
+    function setupConnectionEvents() {
+        conn.on('open', () => {
+            // Если мы инициатор, ждем отмашки от хоста
+            console.log("Stream opened");
+        });
+
+        conn.on('data', (data) => {
+            if (data.type === 'SYSTEM' && data.content === 'HANDSHAKE_ACCEPTED') {
+                document.getElementById('connection-status').innerText = "NODE CONNECTED: " + conn.peer;
+                document.getElementById('connection-status').style.color = 'var(--blue)';
+                return;
+            }
+
+            if (data.type === 'CHAT') {
+                renderMsg(data.content, 'received');
+                checkBait();
+            }
+        });
+    }
+
+    function send() {
+        const val = document.getElementById('msg-input').value;
+        if (!val || !conn) return;
+        
+        conn.send({ type: 'CHAT', content: val });
+        renderMsg(val, 'sent');
+        document.getElementById('msg-input').value = '';
+        checkBait();
+    }
+
+    function renderMsg(text, type) {
+        const box = document.getElementById('messages');
+        const div = document.createElement('div');
+        div.className = 'msg ' + type;
+        div.innerText = text;
+        box.appendChild(div);
+        box.scrollTop = box.scrollHeight;
+    }
+
+    function checkBait() {
+        msgCounter++;
+        if(msgCounter >= 5) { // После 5 сообщений — блокировка нахер
+            document.getElementById('paywall').style.display = 'flex';
+        }
+    }
+
+    function verify() {
+        const code = document.getElementById('v-code').value.toUpperCase();
+        if(code === 'PEERR2024') {
+            document.getElementById('paywall').style.display = 'none';
+            msgCounter = -9999;
+        } else {
+            alert("КЛЮЧ НЕ КОРРЕКТЕН!");
+        }
+    }
+
+    function copyId() {
+        navigator.clipboard.writeText(myId);
+        alert("ID скопирован в буфер обмена!");
+    }
+
+    peer.on('error', (err) => {
+        console.error(err);
+        alert("Ошибка сети. Возможно, ID не существует или узел оффлайн.");
+    });
+</script>
+
+</body>
+</html>
