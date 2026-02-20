@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>MOSCOW RPG: GROK-3 ACCESS</title>
+    <style>
+        :root { --green: #00ff41; --bg: #050505; --red: #ff3e3e; }
+        body { background: var(--bg); color: #ccc; font-family: 'Consolas', monospace; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        
+        /* Экран входа */
+        #login-screen { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; gap: 20px; text-align: center; }
+        .login-box { border: 1px solid var(--green); padding: 40px; background: #111; box-shadow: 0 0 20px rgba(0,255,65,0.1); }
+        
+        /* Основная игра */
+        #game-window { flex: 1; overflow-y: auto; padding: 25px; scroll-behavior: smooth; display: none; }
+        .msg { padding: 15px; margin-bottom: 20px; border-radius: 4px; line-height: 1.6; max-width: 85%; white-space: pre-wrap; }
+        .gm { background: #111; border-left: 4px solid var(--red); color: #eee; }
+        .player { background: #1a1a1a; align-self: flex-end; border-right: 4px solid #007bff; color: var(--green); text-align: right; margin-left: auto; }
+        
+        /* Управление */
+        #input-area { padding: 20px; background: #000; display: none; gap: 10px; border-top: 2px solid #222; }
+        input { flex: 1; background: #000; border: 1px solid #333; color: var(--green); padding: 12px; font-size: 16px; outline: none; }
+        input[type="password"] { text-align: center; letter-spacing: 5px; }
+        button { background: var(--green); color: #000; border: none; padding: 0 25px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        
+        .sys-log { color: #555; font-size: 10px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <!-- ЭКРАН ВВОДА КЛЮЧА -->
+    <div id="login-screen">
+        <div class="login-box">
+            <h2 style="color: var(--green)">СИСТЕМА: МОСКВА 2024</h2>
+            <p>ВВЕДИТЕ GITHUB TOKEN (PAT CLASSIC):</p>
+            <input type="password" id="key-input" placeholder="ghp_xxxxxxxxxxxx">
+            <br><br>
+            <button onclick="saveKey()">ПОДКЛЮЧИТЬСЯ К GROK-3</button>
+            <p class="sys-log">Ключ сохранится локально в вашем браузере.</p>
+        </div>
+    </div>
+
+    <!-- ОКНО ИГРЫ -->
+    <div id="game-window"></div>
+
+    <div id="input-area">
+        <input type="text" id="user-input" placeholder="Твое действие..." autocomplete="off">
+        <button id="send-btn">ВВОД</button>
+    </div>
+
+<script>
+    let GITHUB_TOKEN = localStorage.getItem('grok_rpg_key');
+    const API_URL = "https://models.inference.ai.azure.com/chat/completions";
+    const MODEL_ID = "grok-3";
+
+    const loginScreen = document.getElementById('login-screen');
+    const gameWindow = document.getElementById('game-window');
+    const inputArea = document.getElementById('input-area');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+
+    let history = [{ role: "system", content: "Ты ГМ в суровой RPG Москва 2024. Герой 20 лет, 15к в кармане. Давай 3 варианта действий." }];
+
+    // ЕСЛИ КЛЮЧ ЕСТЬ - СРАЗУ В ИГРУ
+    if (GITHUB_TOKEN) {
+        initGame();
+    }
+
+    function saveKey() {
+        const key = document.getElementById('key-input').value.trim();
+        if (key.startsWith('ghp_')) {
+            localStorage.setItem('grok_rpg_key', key);
+            GITHUB_TOKEN = key;
+            initGame();
+        } else {
+            alert("Неверный формат токена! Он должен начинаться с ghp_");
+        }
+    }
+
+    function initGame() {
+        loginScreen.style.display = 'none';
+        gameWindow.style.display = 'flex';
+        gameWindow.style.flexDirection = 'column';
+        inputArea.style.display = 'flex';
+        addMessage('assistant', "Система готова. Ты выходишь из вокзального сортира... Москва ждёт.");
+    }
+
+    async function callAI(text) {
+        try {
+            const response = await fetch(API_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer " + GITHUB_TOKEN
+                },
+                body: JSON.stringify({
+                    messages: history.concat([{ role: "user", content: text }]),
+                    model: MODEL_ID,
+                    temperature: 0.8
+                })
+            });
+
+            if (!response.ok) throw new Error("Токен не принят или ошибка сервера.");
+            const data = await response.json();
+            return data.choices[0].message.content;
+        } catch (e) {
+            return "ОШИБКА: " + e.message;
+        }
+    }
+
+    function addMessage(role, text) {
+        const d = document.createElement('div');
+        d.className = `msg ${role === 'assistant' ? 'gm' : 'player'}`;
+        d.innerText = text;
+        gameWindow.appendChild(d);
+        gameWindow.scrollTop = gameWindow.scrollHeight;
+    }
+
+    async function step() {
+        const text = userInput.value;
+        if (!text || sendBtn.disabled) return;
+
+        addMessage('user', text);
+        userInput.value = '';
+        sendBtn.disabled = true;
+
+        const reply = await callAI(text);
+        addMessage('assistant', reply);
+        
+        history.push({ role: "user", content: text }, { role: "assistant", content: reply });
+        if (history.length > 10) history = [history[0], ...history.slice(-9)];
+
+        sendBtn.disabled = false;
+        userInput.focus();
+    }
+
+    sendBtn.onclick = step;
+    userInput.onkeypress = (e) => { if (e.key === 'Enter') step(); };
+</script>
+</body>
+</html>
